@@ -5,5 +5,8 @@ from .views import *
 urlpatterns = [
     path('',home,name="home"),
     path('room/<str:pk>/',room,name="room"),
+    path('create-room/',CreateRoom,name="create-room"),
+    path('update-room<str:pk>/',UpdateRoom,name="update-room"),
+    path('delete-room<str:pk>/',DeleteRoom,name="delete-room"),
 
 ]
