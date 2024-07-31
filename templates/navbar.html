@@ -6,10 +6,15 @@
   <title>TalkBUD</title>
 </head>
 <body>
+
+
   <a href = "/">LOGO</a>
   <form method="GET" action = "{% url 'home' %}">
     <input type="text" name="q" placeholder = "Search...">
 
   </form>
+
+<a href="{% url 'login' %}">LOGIN</a>
+
 </body>
 </html>
