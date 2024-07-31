@@ -3,9 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Document</title>
+  <title>TalkBUD</title>
 </head>
 <body>
-  <h1>LOGO</h1>
+  <a href = "/">LOGO</a>
+  <form method="GET" action = "{% url 'home' %}">
+    <input type="text" name="q" placeholder = "Search...">
+
+  </form>
 </body>
 </html>
