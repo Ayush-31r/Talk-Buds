@@ -8,13 +8,19 @@
 <body>
 
 
-  <a href = "/">LOGO</a>
+  <a href = "/"><h2>LOGO</h2></a>
   <form method="GET" action = "{% url 'home' %}">
     <input type="text" name="q" placeholder = "Search...">
 
   </form>
-
-<a href="{% url 'login' %}">LOGIN</a>
+  {% if request.user.is_authenticated %}
+    <form action="{% url 'logout' %}" method="post">
+      {% csrf_token %}
+    <button type="submit" class="btn btn-info">Logout</button>
+</form>
+  {% else %}
+    <a href="{% url 'login' %}">LOGIN</a>
+  {% endif %}
 
 </body>
 </html>
