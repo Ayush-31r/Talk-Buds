@@ -14,6 +14,7 @@ from .forms import RoomForm
 # Create your views here.
 
 def LoginPage(request):
+    
 
     if request.user.is_authenticated:
         return redirect('home')
