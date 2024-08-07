@@ -23,6 +23,7 @@ def LoginPage(request):
         username = request.POST.get('username')
         password = request.POST.get('password')
 
+
         try:
             user = User.objects.get(username=username)
         except:
