@@ -44,6 +44,7 @@ def logoutUser(request):
     logout(request)
     return redirect('home')
 
+
 def RegisterUser(request):
     form = UserCreationForm()
     if request.method == 'POST':
