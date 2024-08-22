@@ -77,10 +77,16 @@ def home(request):
 
 def room(request,pk):
     room = Room.objects.get(id=pk)
-    chats = Room.message_set.all().order_by('-created')
+    chats = room.message_set.all().order_by('-created')
 
     if request.method == 'POST':
-        chat = message
+        chat = message.objects.create(
+            user = request.user,
+            room=room,
+            body=request.POST.get('body')
+        )
+        return redirect('room', pk=room.id)
+    
     context = {'room' : room , 'chats' : chats}
     return render(request,'base/room.html',context)
 
