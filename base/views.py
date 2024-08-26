@@ -49,8 +49,8 @@ def RegisterUser(request):
     form = UserCreationForm()
     if request.method == 'POST':
         form = UserCreationForm(request.POST)
-        if form.is_valid:
-            user = form.save(commit=False)
+        if form.is_valid():
+            user = form.save(commit=True)
             user.username = user.username.lower()
             user.save()
             login(request,user)
@@ -78,16 +78,17 @@ def home(request):
 def room(request,pk):
     room = Room.objects.get(id=pk)
     chats = room.message_set.all().order_by('-created')
-
+    participants = room.participants.all()
     if request.method == 'POST':
         chat = message.objects.create(
             user = request.user,
             room=room,
             body=request.POST.get('body')
         )
+        room.participants.add(request.user)
         return redirect('room', pk=room.id)
     
-    context = {'room' : room , 'chats' : chats}
+    context = {'room' : room , 'chats' : chats, 'participants' : participants,}
     return render(request,'base/room.html',context)
 
 
@@ -130,3 +131,15 @@ def DeleteRoom(request,pk):
         room.delete()
         return redirect('home')
     return render(request,'base/delete.html',{'obj' :room})
+
+@login_required(login_url='login')
+def DeleteChat(request,pk):
+    chat = message.objects.get(id=pk)
+
+    if request.user != chat.user:
+        return HttpResponse('You are not allowed here !!')
+
+    if request.method == 'POST':
+        chat.delete()
+        return redirect('home')
+    return render(request,'base/delete.html',{'obj' : chat})
