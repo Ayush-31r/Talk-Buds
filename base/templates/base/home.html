@@ -48,6 +48,14 @@
 
     <div>
         <h3>Recent</h3>
+        <hr>
+        {% for chat in chats %}
+            <div>
+                <small>@{{chat.user}}  {{chat.created|timesince}}</small>
+                <small>replied to "{{chat.room}}"</small>
+                <P>{{chat.body}}</P>
+            </div>
+        {% endfor %}
     </div>
 </div>
 {%endblock%}
