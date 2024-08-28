@@ -93,7 +93,13 @@ def room(request,pk):
     context = {'room' : room , 'chats' : chats, 'participants' : participants,}
     return render(request,'base/room.html',context)
 
-
+def profile(request,pk):
+    user = User.objects.get(id=pk)
+    rooms = user.room_set.all()
+    chats = user.message_set.all().order_by('-created')
+    topics = Topic.objects.all()
+    context = {'user':user,'rooms':rooms,'chats':chats,'topics':topics}
+    return render(request,'base/profile.html',context)
 
 @login_required(login_url='login')
 def CreateRoom(request):
