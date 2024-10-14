@@ -1,4 +1,33 @@
-<h3>Recent</h3>
+<div class="activities">
+    <div class="activities__header">
+      <h2>Recent Activities</h2>
+    </div>
+    {% for chat in chats %}
+    <div class="activities__box">
+      <div class="activities__boxHeader roomListRoom__header">
+        <a href="{% url 'profile' chat.user.id %}" class="roomListRoom__author">
+          <div class="avatar avatar--small">
+            <img src="https://randomuser.me/api/portraits/women/11.jpg" />
+          </div>
+          <p>
+            @{{chat.user}}
+            <span>{{chat.created|timesince}}</span>
+          </p>
+        </a>
+
+      </div>
+      <div class="activities__boxContent">
+        <p>replied to post “<a href="{% url 'room' chat.room.id %}">{{chat.room}}</a>”</p>
+        <div class="activities__boxRoomContent">
+            {{chat.body}}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+
+<!-- <h3>Recent</h3>
         <hr>
         {% for chat in chats %}
             <div>
@@ -6,4 +35,4 @@
                 <small>replied to "{{chat.room}}"</small>
                 <P>{{chat.body}}</P>
             </div>
-        {% endfor %}
+        {% endfor %} -->
