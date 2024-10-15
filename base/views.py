@@ -102,6 +102,20 @@ def profile(request,pk):
     context = {'user':user,'rooms':rooms,'chats':chats,'topics':topics}
     return render(request,'base/profile.html',context)
 
+def Topics(request):
+    q = request.GET.get('q') if request.GET.get('q') != None else ''
+
+    rooms = Room.objects.filter(
+        Q(topic__name__icontains=q)
+    )
+
+    topics = Topic.objects.all()
+    room_count = rooms.count()
+
+
+    context = {'rooms' : rooms,'topics' : topics,'room_count':room_count}
+    return render(request,'base/topics.html',context)
+
 @login_required(login_url='login')
 def CreateRoom(request):
     form = RoomForm()
