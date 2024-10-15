@@ -7,7 +7,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import authenticate, login, logout
 from .models import *
-from .forms import RoomForm 
+from .forms import *
 
 
 
@@ -116,6 +116,23 @@ def Topics(request):
     context = {'rooms' : rooms,'topics' : topics,'room_count':room_count}
     return render(request,'base/topics.html',context)
 
+def Activity(request):
+    q = request.GET.get('q') if request.GET.get('q') != None else ''
+
+    rooms = Room.objects.filter(
+        Q(topic__name__icontains=q) |
+        Q(name__icontains=q) |
+        Q(description__icontains=q)
+    )
+
+    topics = Topic.objects.all()
+    chats = message.objects.all()
+
+
+    context = {'rooms' : rooms,'topics' : topics, 'chats' : chats}
+    return render(request,'base/activity.html',context)
+
+
 @login_required(login_url='login')
 def CreateRoom(request):
     form = RoomForm()
@@ -176,3 +193,15 @@ def DeleteChat(request,pk):
         chat.delete()
         return redirect('home')
     return render(request,'base/delete.html',{'obj' : chat})
+
+@login_required(login_url='login')
+def UpdateUser(request):
+    user = request.user
+    form = UserForm(instance=user)
+    if request.method == 'POST':
+        form = UserForm(request.POST,instance=user)
+        if form.is_valid():
+            form.save()
+            return redirect('profile' ,pk = user.id)
+    context = {'user':user,'form':form}
+    return render(request,'base/UpdateUser.html',context)
