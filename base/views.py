@@ -3,8 +3,6 @@ from django.http import HttpResponse
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
-from django.contrib.auth.models import User
-from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import authenticate, login, logout
 from .models import *
 from .forms import *
@@ -20,16 +18,16 @@ def LoginPage(request):
         return redirect('home')
 
     if request.method == "POST":
-        username = request.POST.get('username').lower()
+        email = request.POST.get('email')
         password = request.POST.get('password')
 
 
         try:
-            user = User.objects.get(username=username)
+            user = User.objects.get(email=email)
         except:
             messages.error(request, 'User does not exist')
 
-        user = authenticate(request, username=username, password=password)
+        user = authenticate(request, email=email, password=password)
 
         if user is not None:
             login(request, user)
@@ -46,9 +44,9 @@ def logoutUser(request):
 
 
 def RegisterUser(request):
-    form = UserCreationForm()
+    form = MyUserCreationForm()
     if request.method == 'POST':
-        form = UserCreationForm(request.POST)
+        form = MyUserCreationForm(request.POST)
         if form.is_valid():
             user = form.save(commit=True)
             user.username = user.username.lower()
@@ -145,7 +143,7 @@ def CreateRoom(request):
             host = request.user,
             topic = topic,
             name = request.POST.get('name'),
-            description = request.POST.get('desc')
+            description = request.POST.get('description')
         )
         return redirect('home')
     context = {'form' : form, 'topics':topics}
@@ -156,16 +154,14 @@ def UpdateRoom(request,pk):
     room = Room.objects.get(id=pk)
     form = RoomForm(instance=room)
     topics = Topic.objects.all()
-    if request.user != room.host:
-        return HttpResponse('You are not allowed here !!')
 
     if request.method == 'POST':
         topic_name = request.POST.get('topic')
         topic,created = Topic.objects.get_or_create(name = topic_name)
         room.name = request.POST.get('name')
-        room.description = request.POST.get('desc')
+        room.description = request.POST.get('description')
         room.topic = topic
-
+        room.save()
         return redirect('home')
     context = {'form' : form,'topics':topics, 'room':room}
     return render(request,'base/room_form.html',context)
@@ -199,7 +195,7 @@ def UpdateUser(request):
     user = request.user
     form = UserForm(instance=user)
     if request.method == 'POST':
-        form = UserForm(request.POST,instance=user)
+        form = UserForm(request.POST,request.FILES,instance=user)
         if form.is_valid():
             form.save()
             return redirect('profile' ,pk = user.id)
