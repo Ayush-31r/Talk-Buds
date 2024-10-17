@@ -2,7 +2,7 @@
 
 {% block content %}
 <main class="auth layout">
-
+  {% load socialaccount %}
   {% if page == 'login' %}
   <div class="container">
     <div class="layout__box">
@@ -13,6 +13,7 @@
       </div>
       <div class="layout__body">
         <h2 class="auth__tagline">Find your study partner</h2>
+        
 
         <form class="form" action="" method="POST">
           {% csrf_token %}
@@ -40,7 +41,9 @@
             Login
           </button>
         </form>
-
+        <div class="auth__action">
+          <a href="{% provider_login_url 'google' %}?next=/" class="btn btn--link">GOOGLE</a>
+        </div>
         <div class="auth__action">
           <p>Haven't signed up yet?</p>
           <a href="{% url 'register' %}" class="btn btn--link">Sign Up</a>
@@ -86,8 +89,8 @@
         </form>
 
         <div class="auth__action">
-          <p>Already signed up yet?</p>
-          <a href="{% url 'login' %}" class="btn btn--link">Sign Up</a>
+          <p>Already signed up?</p>
+          <a href="{% url 'login' %}" class="btn btn--link">Log In</a>
         </div>
       </div>
     </div>
