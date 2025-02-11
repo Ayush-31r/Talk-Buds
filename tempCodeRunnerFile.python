@@ -1,0 +1,9 @@
+
+input = ["ayush","cat","at"]
+sort = sorted(input,key=len)
+# for i in input:
+#     A[i] = len(i)
+# sorted(A)
+# for i in A:
+#     print(i)
+print(sort)

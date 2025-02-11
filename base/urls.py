@@ -19,4 +19,4 @@ urlpatterns = [
     path('delete-room<str:pk>/',DeleteRoom,name="delete-room"),
     path('delete-message<str:pk>/',DeleteChat,name="delete-message"),
     path('update-user/',UpdateUser,name="update-user"),
-]
+] 

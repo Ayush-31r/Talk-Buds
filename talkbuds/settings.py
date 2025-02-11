@@ -30,7 +30,7 @@ ALLOWED_HOSTS = []
 
 # Application definition
 
-SITE_ID = 2
+SITE_ID = 3
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -47,6 +47,8 @@ INSTALLED_APPS = [
     'allauth.socialaccount.providers.google'
 ]
 SOCIALACCOUNT_LOGIN_ON_GET=True
+
+
 SOCIALACCOUNT_PROVIDERS = {
     "google": {
         "SCOPE":{
@@ -98,8 +100,12 @@ WSGI_APPLICATION = 'talkbuds.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'talkbuds',
+        'USER' :'root',
+        'PASSWORD':'Duty@3131',
+        'HOST':'127.0.0.1',
+        'PORT': '3306'
     }
 }
 
