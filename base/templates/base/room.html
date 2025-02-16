@@ -93,7 +93,7 @@
               </div>
               <span class="room__topics">{{room.topic}}</span>
             </div>
-            <div class="room__conversation">
+            <div class="room__conversation" id="chat-log">
               <div class="threads scroll">
                 {% for chat in chats %}
                 <div class="thread">
@@ -130,10 +130,11 @@
           </div>
 
           {% if request.user.is_authenticated %}
+
           <div class="room__message">
-            <form method="POST" action="">
+            <form method="POST" id="chat-form" action="">
                 {% csrf_token %}
-                <input type="text" name="body" placeholder="Write your message here..." />
+                <input type="text" id="message-input" name="body" placeholder="Write your message here..." />
             </form>
           </div>
           {%endif%}
@@ -159,5 +160,59 @@
         </div>
         <!--  End -->
       </div>
+
+      <script>
+        const roomId = "{{ room.id }}";
+        const chatSocket = new WebSocket(`ws://${window.location.host}/room/${roomId}/`);
+      
+      chatSocket.onmessage = function (event) {
+        console.log("Raw event.data:", event.data);
+          const data = JSON.parse(event.data);
+          console.log("Parsed data:", data);
+          
+          // Append new message without refreshing
+          const chatLog = document.getElementById("chat-log");
+          const messageElement = document.createElement("p");
+          messageElement.innerHTML = `<strong>${data.user}:</strong> ${data.message}`;
+          chatLog.appendChild(messageElement);
+      };
+      
+      chatSocket.onclose = function (event) {
+          console.error("WebSocket closed unexpectedly");
+      };
+      
+      // Send message on form submit
+      document.getElementById("chat-form").onsubmit = function (e) {
+          e.preventDefault();
+          
+          const messageInput = document.getElementById("message-input");
+          const message = messageInput.value;
+          
+          chatSocket.send(JSON.stringify({
+              "message": message,
+              "username": "{{request.user.username}}",  // Replace with dynamic username
+          }));
+          
+          messageInput.value = "";  // Clear input field
+      };
+        // const roomName = "{{ room.name }}"; 
+        // const username = "{{ request.user.username }}";
+      
+        // const chatSocket = new WebSocket(`ws://${window.location.host}/ws/chat/${roomName}/`);
+      
+        // chatSocket.onmessage = function (e) {
+        //     const data = JSON.parse(e.data);
+        //     document.querySelector("#chat-log").innerHTML += `<p><b>${data.username}:</b> ${data.message}</p>`;
+        // };
+      
+        // document.querySelector("#chat-message-submit").onclick = function (e) {
+        //     const messageInput = document.querySelector("#chat-message-input").value;
+        //     chatSocket.send(JSON.stringify({ "message": messageInput, "username": username }));
+        //     document.querySelector("#chat-message-input").value = "";
+        // };
+        // const roomId = "{{ room.id }}";  // Get room ID from Django template
+        // const chatSocket = new WebSocket(`ws://${window.location.host}/ws/chat/${roomId}/`);
+      
+      </script>
       {%endblock%}
 

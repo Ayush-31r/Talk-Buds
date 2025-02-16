@@ -44,4 +44,43 @@
 
 // Menu
 
+// const dropdownMenu = document.querySelector(".dropdown-menu");
+// const dropdownButton = document.querySelector(".dropdown-button");
 
+// if (dropdownButton) {
+//   dropdownButton.addEventListener("click", () => {
+//     dropdownMenu.classList.toggle("show");
+//   });
+// }
+
+// // Upload Image
+// const photoInput = document.querySelector("#avatar");
+// const photoPreview = document.querySelector("#preview-avatar");
+// if (photoInput)
+//   photoInput.onchange = () => {
+//     const [file] = photoInput.files;
+//     if (file) {
+//       photoPreview.src = URL.createObjectURL(file);
+//     }
+//   };
+
+// // Scroll to Bottom
+// const conversationThread = document.querySelector(".room__box");
+// if (conversationThread) conversationThread.scrollTop = conversationThread.scrollHeight;
+
+// const roomName = "{{ room.name }}"; 
+// const username = "{{ request.user.username }}";
+
+// const chatSocket = new WebSocket(`ws://${window.location.host}/ws/chat/${roomName}/`);
+// chatSocket.onmessage = function (e) {
+//     const data = JSON.parse(e.data);
+//     document.querySelector("#chat-log").innerHTML += `<p><b>${data.username}:</b> ${data.message}</p>`;
+// };
+
+// document.querySelector("#chat-message-submit").onclick = function (e) {
+//       const messageInput = document.querySelector("#chat-message-input").value;
+//       chatSocket.send(JSON.stringify({ "message": messageInput, "username": username }));
+//       document.querySelector("#chat-message-input").value = "";
+// };
+// const roomId = "{{ room.id }}";  // Get room ID from Django template
+// const chatSocket = new WebSocket(`ws://${window.location.host}/ws/chat/${roomId}/`);
