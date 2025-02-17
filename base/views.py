@@ -88,7 +88,7 @@ def room(request,pk):
         room.participants.add(request.user)
         return redirect('room', pk=room.id)
     
-    context = {'room' : room , 'chats' : chats, 'participants' : participants,}
+    context = {'room' : room , 'chats' : chats, 'participants' : participants,'user_id': request.user.id,'username' : request.user.username}
     return render(request,'base/room.html',context)
 
 

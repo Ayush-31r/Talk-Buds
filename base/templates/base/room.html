@@ -93,21 +93,12 @@
               </div>
               <span class="room__topics">{{room.topic}}</span>
             </div>
-            <div class="room__conversation" id="chat-log">
+            <div class="room__conversation" id="chatBox">
               <div class="threads scroll">
-                {% for chat in chats %}
-                <div class="thread">
-                  <div class="thread__top">
-                    <div class="thread__author">
-                      <a href="{% url 'profile' chat.user.id %}" class="thread__authorInfo">
-                        <div class="avatar avatar--small">
-                          <img src="{{chat.user.avatar.url}}" />
-                        </div>
-                        <span>@{{chat.user.username}}</span>
-                      </a>
-                      <span class="thread__date">{{chat.created|timesince}}</span>
-                    </div>
-                    {% if chat.user == request.user%}
+                <div class="thread" id="chat-log">
+                  <!-- <div class="thread__top"> -->
+                    
+                    <!-- {% if chat.user == request.user%}
                     <div class="thread__delete">
                         <a href="{% url 'delete-message' chat.id %}">
                             <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
@@ -118,13 +109,13 @@
                             </svg>
                         </a>
                     </div>
-                    {%endif%}
-                  </div>
+                    {%endif%} -->
+                  <!-- </div>
                   <div class="thread__details">
                     {{chat.body}}
-                  </div>
+                  </div> -->
                 </div>
-                {% endfor %}
+                
               </div>
             </div>
           </div>
@@ -158,60 +149,50 @@
             {% endfor %}
           </div>
         </div>
-        <!--  End -->
+        <!--  End -->1
+        
       </div>
 
       <script>
         const roomId = "{{ room.id }}";
         const chatSocket = new WebSocket(`ws://${window.location.host}/room/${roomId}/`);
       
-      chatSocket.onmessage = function (event) {
-        console.log("Raw event.data:", event.data);
+        const CURRENT_USER_ID = "{{ user_id }}";
+        const CURRENT_USERNAME = "{{ username }}";
+        chatSocket.onmessage = function (event) {
+          console.log("Raw event.data:", event.data);
           const data = JSON.parse(event.data);
           console.log("Parsed data:", data);
+
+          const username = data.username || "Unknown";
+          const message = data.message || "";
           
-          // Append new message without refreshing
-          const chatLog = document.getElementById("chat-log");
+          
+          chatLog = document.getElementById("chat-log")
           const messageElement = document.createElement("p");
           messageElement.innerHTML = `<strong>${data.user}:</strong> ${data.message}`;
           chatLog.appendChild(messageElement);
       };
       
+    
+      
+
+      const sendMessage = () => {
+          
+          const messageInput = document.getElementById("message-input");
+          const messageData = {
+            user_id: CURRENT_USER_ID,
+            username: CURRENT_USERNAME,
+            message:messageInput.value
+          };
+          
+          chatSocket.send(JSON.stringify(messageData));
+          messageInput.value = ""; 
+      };
+
       chatSocket.onclose = function (event) {
           console.error("WebSocket closed unexpectedly");
       };
-      
-      // Send message on form submit
-      document.getElementById("chat-form").onsubmit = function (e) {
-          e.preventDefault();
-          
-          const messageInput = document.getElementById("message-input");
-          const message = messageInput.value;
-          
-          chatSocket.send(JSON.stringify({
-              "message": message,
-              "username": "{{request.user.username}}",  // Replace with dynamic username
-          }));
-          
-          messageInput.value = "";  // Clear input field
-      };
-        // const roomName = "{{ room.name }}"; 
-        // const username = "{{ request.user.username }}";
-      
-        // const chatSocket = new WebSocket(`ws://${window.location.host}/ws/chat/${roomName}/`);
-      
-        // chatSocket.onmessage = function (e) {
-        //     const data = JSON.parse(e.data);
-        //     document.querySelector("#chat-log").innerHTML += `<p><b>${data.username}:</b> ${data.message}</p>`;
-        // };
-      
-        // document.querySelector("#chat-message-submit").onclick = function (e) {
-        //     const messageInput = document.querySelector("#chat-message-input").value;
-        //     chatSocket.send(JSON.stringify({ "message": messageInput, "username": username }));
-        //     document.querySelector("#chat-message-input").value = "";
-        // };
-        // const roomId = "{{ room.id }}";  // Get room ID from Django template
-        // const chatSocket = new WebSocket(`ws://${window.location.host}/ws/chat/${roomId}/`);
       
       </script>
       {%endblock%}
