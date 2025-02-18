@@ -1,13 +1,18 @@
 from channels.generic.websocket import AsyncWebsocketConsumer
 import json
-from asgiref.sync import sync_to_async
+# from asgiref.sync import database_sync_to_async
 from django.contrib.auth import get_user_model
-from .models import Room, message
+from channels.db import database_sync_to_async
+from .models import Room, message, User
 
-User = get_user_model()
+# User = get_user_model()
+import logging
+
+logger = logging.getLogger(__name__)
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         self.room_id = self.scope["url_route"]["kwargs"]["room_id"]
+        self.room = await database_sync_to_async(Room.objects.get)(id=self.room_id)
         self.room_group_name = f"chat_{self.room_id}"
 
 
@@ -17,15 +22,18 @@ class ChatConsumer(AsyncWebsocketConsumer):
         )
 
         await self.accept()
-        messages = await sync_to_async(lambda: list(
-            message.objects.filter(room_id=self.room_id).values("user__username", "body", "created")
+        messages = await database_sync_to_async(lambda: list(
+            message.objects.filter(room_id=self.room_id)
+            .select_related("user")  # Ensure user data is fetched efficiently
         ))()
 
+        # Send previous messages to the connected user in the correct format
         for msg in messages:
             await self.send(text_data=json.dumps({
-                "user": msg["user__username"],
-                "message": msg["body"],
-                "timestamp": str(msg["created"])
+                "user_id": msg.user.id if msg.user else None,  # Ensure no crash if user is null
+                "username": msg.user.username if msg.user else "Unknown",  # Fix username issue
+                "message": msg.body,
+                "timestamp": msg.created.strftime('%Y-%m-%d %H:%M:%S')
             }))
 
     async def disconnect(self, close_code):
@@ -42,19 +50,19 @@ class ChatConsumer(AsyncWebsocketConsumer):
         user_id = data.get("user_id")
         username = data.get("username")
 
-        user = await sync_to_async(User.objects.get)(id=user_id)
-        room = await sync_to_async(Room.objects.get)(id=self.room_id)
+        user = await database_sync_to_async(User.objects.get)(id=user_id)
+        room = await database_sync_to_async(Room.objects.get)(id=self.room_id)
 
-        await self.channel_layer.group_send(
-            self.room_group_name,
-            {
-                "type": "chat_message",
-                "message": message_body,
-                "user": user,
-            }
-        )
+        # await self.channel_layer.group_send(
+        #     self.room_group_name,
+        #     {
+        #         "type": "chat_message",
+        #         "message": message_body,
+        #         "user": user,
+        #     }
+        # )
 
-        message_obj = await sync_to_async(message.objects.create)(
+        message_obj = await database_sync_to_async(message.objects.create)(
             user=user, room=room, body=message_body
         )
 
@@ -66,7 +74,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             "type": "chat_message",
             "message": message_body,
             "user_id": user.id,
-            "username": user.username,
+            "username": username,
             "timestamp": timestamp
         }
     )

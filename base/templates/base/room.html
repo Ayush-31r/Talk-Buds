@@ -125,7 +125,8 @@
           <div class="room__message">
             <form method="POST" id="chat-form" action="">
                 {% csrf_token %}
-                <input type="text" id="message-input" name="body" placeholder="Write your message here..." />
+                <input type="text" id="message-input" name="body" placeholder="Write your message here..."  onsubmit="sendMessage()"/>
+                <!-- <button onclick="sendMessage()">Send</button> -->
             </form>
           </div>
           {%endif%}
@@ -160,24 +161,27 @@
         const CURRENT_USER_ID = "{{ user_id }}";
         const CURRENT_USERNAME = "{{ username }}";
         chatSocket.onmessage = function (event) {
-          console.log("Raw event.data:", event.data);
           const data = JSON.parse(event.data);
           console.log("Parsed data:", data);
 
-          const username = data.username || "Unknown";
-          const message = data.message || "";
+          const message = data.message;
+          const userId = data.user_id;
+          const username = data.username;
+          const timestamp = data.timestamp;
           
           
           chatLog = document.getElementById("chat-log")
-          const messageElement = document.createElement("p");
-          messageElement.innerHTML = `<strong>${data.user}:</strong> ${data.message}`;
-          chatLog.appendChild(messageElement);
+          if (data.username && data.message) {
+            const messageElement = document.createElement("p");
+            messageElement.innerHTML = `<strong>${data.username}:</strong> ${data.message}`;
+            chatLog.appendChild(messageElement);
+          }
       };
       
     
       
 
-      const sendMessage = () => {
+      function sendMessage(){
           
           const messageInput = document.getElementById("message-input");
           const messageData = {
@@ -189,6 +193,13 @@
           chatSocket.send(JSON.stringify(messageData));
           messageInput.value = ""; 
       };
+
+      document.getElementById('message-input').addEventListener('keypress', function(event) {
+      if (event.key === 'Enter') {
+          sendMessage();  // Call sendMessage when Enter is pressed
+          event.preventDefault();  // Prevent form submission if it's within a form
+      }
+      });
 
       chatSocket.onclose = function (event) {
           console.error("WebSocket closed unexpectedly");
