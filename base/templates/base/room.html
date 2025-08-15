@@ -93,7 +93,10 @@
               </div>
               <span class="room__topics">{{room.topic}}</span>
             </div>
-            <div class="room__conversation" id="chatBox">
+            <div class="room__conversation" id="chatBox"
+              data-room-id="{{ room.id }}"
+              data-user-id="{{ request.user.id }}"
+              data-username="{{ request.user.username }}">
               <div class="threads scroll">
                 <div class="thread" id="chat-log">
                   <!-- <div class="thread__top"> -->
@@ -125,7 +128,7 @@
           <div class="room__message">
             <form method="POST" id="chat-form" action="">
                 {% csrf_token %}
-                <input type="text" id="message-input" name="body" placeholder="Write your message here..."  onsubmit="sendMessage()"/>
+                <input type="text" id="message-input" name="body" placeholder="Write your message here..."/>
                 <!-- <button onclick="sendMessage()">Send</button> -->
             </form>
           </div>
@@ -185,10 +188,12 @@
           
           const messageInput = document.getElementById("message-input");
           const messageData = {
+            type: "chat_message",  // <- this is required by Channels
             user_id: CURRENT_USER_ID,
             username: CURRENT_USERNAME,
-            message:messageInput.value
+            message: messageInput.value
           };
+
           
           chatSocket.send(JSON.stringify(messageData));
           messageInput.value = ""; 

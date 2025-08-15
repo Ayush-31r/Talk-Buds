@@ -1,65 +1,90 @@
-from django.shortcuts import render, redirect
-from django.http import HttpResponse
+import json
+import redis.asyncio as redis
+from asgiref.sync import async_to_sync
+from django.shortcuts import render, redirect, get_object_or_404
+from django.http import HttpResponse, JsonResponse
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
+from django.db import IntegrityError
 from django.contrib.auth import authenticate, login, logout
-from .models import *
-from .forms import *
+from django.views.decorators.http import require_http_methods
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from .models import Room, Topic, Message, User
+from .forms import MyUserCreationForm, RoomForm, UserForm
+
+# Redis connection settings
+REDIS_URL = "redis://localhost:6379"
+REDIS_ROOM_CACHE_PREFIX = "room_messages:"
+MAX_CACHED_MESSAGES = 50
 
 
+def get_redis():
+    """Return a Redis connection."""
+    return redis.from_url(REDIS_URL, decode_responses=True)
 
-# Create your views here.
 
-def LoginPage(request):
-    
-    page = 'login'
+@require_http_methods(["GET", "POST"])
+def login_page(request):
     if request.user.is_authenticated:
-        return redirect('home')
+        return redirect("home")
 
     if request.method == "POST":
-        email = request.POST.get('email')
-        password = request.POST.get('password')
+        email = (request.POST.get("email") or "").strip().lower()
+        password = request.POST.get("password") or ""
 
-
-        try:
-            user = User.objects.get(email=email)
-        except:
-            messages.error(request, 'User does not exist')
+        if not email or not password:
+            messages.error(request, "Please enter both email and password.")
+            return redirect("login")
 
         user = authenticate(request, email=email, password=password)
 
-        if user is not None:
+        if user:
             login(request, user)
-            return redirect('home')
+            return redirect("home")
         else:
-            messages.error(request, 'Username OR password does not exist')
+            messages.error(request, "Invalid email or password.")
 
-    context = {'page' : page}
-    return render(request, 'base/login_register.html', context)
+    return render(request, "base/login_register.html", {"page": "login"})
+
 
 def logoutUser(request):
     logout(request)
     return redirect('home')
 
 
+@require_http_methods(["GET", "POST"])
 def RegisterUser(request):
+    if request.user.is_authenticated:
+        return redirect('home')
+    
     form = MyUserCreationForm()
+
     if request.method == 'POST':
         form = MyUserCreationForm(request.POST)
-        if form.is_valid():
-            user = form.save(commit=True)
-            user.username = user.username.lower()
-            user.save()
-            login(request,user)
-            return redirect('home')
         
+        if form.is_valid():
+            try:
+                user = form.save(commit=False)
+                user.username = user.username.lower()
+                user.save()
+
+                login(request, user)
+                messages.success(request, "Account created successfully!")
+                return redirect('home')
+
+            except IntegrityError:
+                messages.error(request, "A user with this email already exists.")
+            
         else:
-            messages.error(request,"Error has occured during registration, Try again")
-    return render(request,'base/login_register.html',{'form':form})
+            messages.error(request, "Please correct the errors below.")
+    
+    return render(request, 'base/login_register.html', {'form': form})
+
 
 def home(request):
-    q = request.GET.get('q') if request.GET.get('q') != None else ''
+    q = request.GET.get('q') or ''
 
     rooms = Room.objects.filter(
         Q(topic__name__icontains=q) |
@@ -69,66 +94,89 @@ def home(request):
 
     topics = Topic.objects.all()
     room_count = rooms.count()
-    chats = message.objects.all()
+
+    context = {
+        'rooms': rooms,
+        'topics': topics,
+        'room_count': room_count
+    }
+    return render(request, 'base/home.html', context)
 
 
-    context = {'rooms' : rooms,'topics' : topics,'room_count':room_count, 'chats' : chats}
-    return render(request,'base/home.html',context)
+@login_required(login_url='login')
+def room(request, pk):
+    room = get_object_or_404(Room, id=pk)
+    r = get_redis()
 
-def room(request,pk):
-    room = Room.objects.get(id=pk)
-    chats = room.message_set.all().order_by('-created')
+    cached_messages = async_to_sync(r.lrange)(f"{REDIS_ROOM_CACHE_PREFIX}{pk}", -MAX_CACHED_MESSAGES, -1)
+    if cached_messages:
+        chats = [json.loads(msg) for msg in cached_messages]
+    else:
+        chats_qs = room.messages.all().order_by('-created')[:MAX_CACHED_MESSAGES]
+        chats = [
+            {"user": m.user.username, "body": m.body, "created": m.created.isoformat()}
+            for m in chats_qs
+        ]
+
     participants = room.participants.all()
+
     if request.method == 'POST':
-        chat = message.objects.create(
-            user = request.user,
-            room=room,
-            body=request.POST.get('body')
-        )
-        room.participants.add(request.user)
-        return redirect('room', pk=room.id)
+        body = request.POST.get('body')
+        if body:
+            chat = Message.objects.create(user=request.user, room=room, body=body)
+            room.participants.add(request.user)
+
+            payload = {
+                "user": request.user.username,
+                "body": chat.body,
+                "created": chat.created.isoformat(),
+                "room_id": room.id
+            }
+
+            async_to_sync(r.rpush)(f"{REDIS_ROOM_CACHE_PREFIX}{pk}", json.dumps(payload))
+            async_to_sync(r.ltrim)(f"{REDIS_ROOM_CACHE_PREFIX}{pk}", -MAX_CACHED_MESSAGES, -1)
+            async_to_sync(r.publish)(f"room_{pk}", json.dumps(payload))
+
+            return redirect('room', pk=room.id)
     
-    context = {'room' : room , 'chats' : chats, 'participants' : participants,'user_id': request.user.id,'username' : request.user.username}
-    return render(request,'base/room.html',context)
+    context = {
+        'room': room,
+        'chats': chats,
+        'participants': participants,
+        'user_id': request.user.id,
+        'username': request.user.username
+    }
+    return render(request, 'base/room.html', context)
 
 
-def profile(request,pk):
-    user = User.objects.get(id=pk)
-    rooms = user.room_set.all()
-    chats = user.message_set.all().order_by('-created')
+def profile(request, pk):
+    user = get_object_or_404(User, id=pk)
+    rooms = user.rooms.all()
+    chats = user.messages.all().order_by('-created')
     topics = Topic.objects.all()
-    context = {'user':user,'rooms':rooms,'chats':chats,'topics':topics}
-    return render(request,'base/profile.html',context)
+    context = {'user': user, 'rooms': rooms, 'chats': chats, 'topics': topics}
+    return render(request, 'base/profile.html', context)
+
 
 def Topics(request):
-    q = request.GET.get('q') if request.GET.get('q') != None else ''
-
-    rooms = Room.objects.filter(
-        Q(topic__name__icontains=q)
-    )
-
+    q = request.GET.get('q') or ''
+    rooms = Room.objects.filter(Q(topic__name__icontains=q))
     topics = Topic.objects.all()
-    room_count = rooms.count()
+    context = {'rooms': rooms, 'topics': topics, 'room_count': rooms.count()}
+    return render(request, 'base/topics.html', context)
 
-
-    context = {'rooms' : rooms,'topics' : topics,'room_count':room_count}
-    return render(request,'base/topics.html',context)
 
 def Activity(request):
-    q = request.GET.get('q') if request.GET.get('q') != None else ''
-
+    q = request.GET.get('q') or ''
     rooms = Room.objects.filter(
         Q(topic__name__icontains=q) |
         Q(name__icontains=q) |
         Q(description__icontains=q)
     )
-
     topics = Topic.objects.all()
-    chats = message.objects.all()
-
-
-    context = {'rooms' : rooms,'topics' : topics, 'chats' : chats}
-    return render(request,'base/activity.html',context)
+    chats = Message.objects.all()
+    context = {'rooms': rooms, 'topics': topics, 'chats': chats}
+    return render(request, 'base/activity.html', context)
 
 
 @login_required(login_url='login')
@@ -137,67 +185,85 @@ def CreateRoom(request):
     topics = Topic.objects.all()
     if request.method == 'POST':
         topic_name = request.POST.get('topic')
-        topic,created = Topic.objects.get_or_create(name = topic_name)
-        form = RoomForm(request.POST)
+        topic, _ = Topic.objects.get_or_create(name=topic_name)
         Room.objects.create(
-            host = request.user,
-            topic = topic,
-            name = request.POST.get('name'),
-            description = request.POST.get('description')
+            host=request.user,
+            topic=topic,
+            name=request.POST.get('name'),
+            description=request.POST.get('description')
         )
         return redirect('home')
-    context = {'form' : form, 'topics':topics}
-    return render(request,'base/room_form.html',context)
+    return render(request, 'base/room_form.html', {'form': form, 'topics': topics})
+
 
 @login_required(login_url='login')
-def UpdateRoom(request,pk):
-    room = Room.objects.get(id=pk)
+def UpdateRoom(request, pk):
+    room = get_object_or_404(Room, id=pk)
     form = RoomForm(instance=room)
     topics = Topic.objects.all()
 
     if request.method == 'POST':
         topic_name = request.POST.get('topic')
-        topic,created = Topic.objects.get_or_create(name = topic_name)
+        topic, _ = Topic.objects.get_or_create(name=topic_name)
         room.name = request.POST.get('name')
         room.description = request.POST.get('description')
         room.topic = topic
         room.save()
         return redirect('home')
-    context = {'form' : form,'topics':topics, 'room':room}
-    return render(request,'base/room_form.html',context)
+    return render(request, 'base/room_form.html', {'form': form, 'topics': topics, 'room': room})
+
 
 @login_required(login_url='login')
-def DeleteRoom(request,pk):
-    room = Room.objects.get(id=pk)
-
+def DeleteRoom(request, pk):
+    room = get_object_or_404(Room, id=pk)
     if request.user != room.host:
         return HttpResponse('You are not allowed here !!')
 
     if request.method == 'POST':
         room.delete()
         return redirect('home')
-    return render(request,'base/delete.html',{'obj' :room})
+    return render(request, 'base/delete.html', {'obj': room})
+
 
 @login_required(login_url='login')
-def DeleteChat(request,pk):
-    chat = message.objects.get(id=pk)
-
+def DeleteChat(request, pk):
+    chat = get_object_or_404(Message, id=pk)
     if request.user != chat.user:
         return HttpResponse('You are not allowed here !!')
 
     if request.method == 'POST':
         chat.delete()
         return redirect('home')
-    return render(request,'base/delete.html',{'obj' : chat})
+    return render(request, 'base/delete.html', {'obj': chat})
+
 
 @login_required(login_url='login')
 def UpdateUser(request):
     user = request.user
     form = UserForm(instance=user)
     if request.method == 'POST':
-        form = UserForm(request.POST,request.FILES,instance=user)
+        form = UserForm(request.POST, request.FILES, instance=user)
         if form.is_valid():
             form.save()
-            return redirect('profile' ,pk = user.id)
-    context = {'user':user,'form':form}
-    return render(request,'base/UpdateUser.html',context)
+            return redirect('profile', pk=user.id)
+    return render(request, 'base/UpdateUser.html', {'user': user, 'form': form})
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def api_get_recent_messages(request, room_id):
+    """Return last 50 messages for a room, preferring Redis cache."""
+    r = get_redis()
+    cached_messages = async_to_sync(r.lrange)(f"{REDIS_ROOM_CACHE_PREFIX}{room_id}", -MAX_CACHED_MESSAGES, -1)
+
+    if cached_messages:
+        messages_list = [json.loads(msg) for msg in cached_messages]
+    else:
+        room = get_object_or_404(Room, id=room_id)
+        chats_qs = room.messages.all().order_by('-created')[:MAX_CACHED_MESSAGES]
+        messages_list = [
+            {"user": m.user.username, "body": m.body, "created": m.created.isoformat()}
+            for m in chats_qs
+        ]
+
+    return JsonResponse(messages_list, safe=False)

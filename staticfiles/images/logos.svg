@@ -1,0 +1,15 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Outer Circle Background -->
+  <circle cx="256" cy="256" r="250" fill="#57BBDD" />
+
+  <!-- Main Speech Bubble -->
+  <path d="M160 200 C160 160, 200 140, 250 140 H330 C370 140, 400 160, 400 200 V260 C400 300, 370 320, 330 320 H250 L200 360 V320 H160 C120 320, 100 300, 100 260 V200 C100 160, 130 140, 160 140 Z" fill="white" />
+
+  <!-- Smaller Connected Bubble -->
+  <path d="M360 330 C360 315, 375 300, 395 300 H420 C440 300, 455 315, 455 330 V350 C455 365, 440 380, 420 380 H395 C375 380, 360 365, 360 350 V330 Z" fill="white" />
+
+  <!-- Dots indicating multiple rooms/messages -->
+  <circle cx="210" cy="230" r="10" fill="#57BBDD" />
+  <circle cx="260" cy="230" r="10" fill="#57BBDD" />
+  <circle cx="310" cy="230" r="10" fill="#57BBDD" />
+</svg>
