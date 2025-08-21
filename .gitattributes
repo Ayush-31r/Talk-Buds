@@ -1,0 +1,6 @@
+# Force GitHub Linguist to prioritize Python
+*.py linguist-detectable=true
+
+# Ignore CSS files in language stats
+*.css linguist-detectable=false
+*.scss linguist-detectable=false
