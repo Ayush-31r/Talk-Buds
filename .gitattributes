@@ -2,5 +2,10 @@
 *.py linguist-detectable=true
 
 # Ignore CSS files in language stats
+*.js linguist-detectable=false
+*.jsx linguist-detectable=false
+*.ts linguist-detectable=false
+*.tsx linguist-detectable=false
+*.html linguist-detectable=false
 *.css linguist-detectable=false
 *.scss linguist-detectable=false
