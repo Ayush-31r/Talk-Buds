@@ -7,7 +7,6 @@ class User(AbstractUser):
     email = models.EmailField(unique=True, null=True, db_index=True)
     bio = models.TextField(null=True, blank=True)
     avatar = models.ImageField(null=True, default="avatar.svg")
-
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["username"]
 
@@ -16,6 +15,12 @@ class User(AbstractUser):
             models.Index(fields=["email"]),
             models.Index(fields=["name"]),
         ]
+
+    @property
+    def rooms(self):
+        hosted = self.hosted_rooms.all()
+        participating = self.participating_rooms.all()
+        return (hosted | participating).distinct()
 
 
 class Topic(models.Model):
