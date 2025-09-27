@@ -108,45 +108,51 @@ def room(request, pk):
     room = get_object_or_404(Room, id=pk)
     r = get_redis()
 
-    cached_messages = async_to_sync(r.lrange)(f"{REDIS_ROOM_CACHE_PREFIX}{pk}", -MAX_CACHED_MESSAGES, -1)
+    cached_messages = async_to_sync(r.lrange)(
+        f"{REDIS_ROOM_CACHE_PREFIX}{pk}", 0, -1  # fetch ALL cached
+    )
+
     if cached_messages:
         chats = [json.loads(msg) for msg in cached_messages]
     else:
-        chats_qs = room.messages.all().order_by('-created')[:MAX_CACHED_MESSAGES]
+        # fallback to DB → get ALL messages
+        chats_qs = room.messages.all().order_by("created")
         chats = [
             {"user": m.user.username, "body": m.body, "created": m.created.isoformat()}
             for m in chats_qs
         ]
+        for chat in chats:
+            async_to_sync(r.rpush)(f"{REDIS_ROOM_CACHE_PREFIX}{pk}", json.dumps(chat))
 
     participants = room.participants.all()
 
-    if request.method == 'POST':
-        body = request.POST.get('body')
-        if body:
-            chat = Message.objects.create(user=request.user, room=room, body=body)
-            room.participants.add(request.user)
+    # if request.method == 'POST':
+    #     body = request.POST.get('body')
+    #     if body:
+    #         chat = Message.objects.create(user=request.user, room=room, body=body)
+    #         room.participants.add(request.user)
 
-            payload = {
-                "user": request.user.username,
-                "body": chat.body,
-                "created": chat.created.isoformat(),
-                "room_id": room.id
-            }
+    #         payload = {
+    #             "user": request.user.username,
+    #             "body": chat.body,
+    #             "created": chat.created.isoformat(),
+    #             "room_id": room.id,
+    #         }
 
-            async_to_sync(r.rpush)(f"{REDIS_ROOM_CACHE_PREFIX}{pk}", json.dumps(payload))
-            async_to_sync(r.ltrim)(f"{REDIS_ROOM_CACHE_PREFIX}{pk}", -MAX_CACHED_MESSAGES, -1)
-            async_to_sync(r.publish)(f"room_{pk}", json.dumps(payload))
+    #         async_to_sync(r.rpush)(f"{REDIS_ROOM_CACHE_PREFIX}{pk}", json.dumps(payload))
+    #         # 🚨 removed ltrim so nothing gets deleted
+    #         async_to_sync(r.publish)(f"room_{pk}", json.dumps(payload))
 
-            return redirect('room', pk=room.id)
-    
+    #         return redirect("room", pk=room.id)
+
     context = {
-        'room': room,
-        'chats': chats,
-        'participants': participants,
-        'user_id': request.user.id,
-        'username': request.user.username
+        "room": room,
+        "chats": chats,   # now contains ALL messages
+        "participants": participants,
+        "user_id": request.user.id,
+        "username": request.user.username,
     }
-    return render(request, 'base/room.html', context)
+    return render(request, "base/room.html", context)
 
 
 def profile(request, pk):
